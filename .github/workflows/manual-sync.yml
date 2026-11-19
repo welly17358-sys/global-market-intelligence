@@ -1,8 +1,15 @@
-name: Manual market data sync
+name: Market data sync
 on:
   workflow_dispatch:
+  schedule:
+    # UTC 07:00 / 09:00 / 11:00 = Taiwan 15:00 / 17:00 / 19:00, Mon-Fri.
+    # GitHub schedule may be delayed; exchange holidays are not filtered.
+    - cron: '0 7,9,11 * * 1-5'
 permissions:
   contents: read
+concurrency:
+  group: market-data-sync
+  cancel-in-progress: false
 jobs:
   sync:
     runs-on: ubuntu-latest

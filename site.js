@@ -14,11 +14,20 @@ async function refresh(){
  if(!db){notice.textContent='尚未設定 Supabase：請確認 config.js 的公開金鑰。';content.textContent='請依 README 完成部署。';return}
  notice.textContent='正在讀取 Supabase 已儲存資料…';
  try{
-  const [newsCount,stockCount,logs]=await Promise.all([count('news_articles'),count('stock_prices'),query('sync_logs','source_id,status,finished_at',1,'finished_at')]);
+  const [newsCount,stockCount,logs,twseLog,latestPrice]=await Promise.all([
+   count('news_articles'),count('stock_prices'),query('sync_logs','source_id,status,finished_at',1,'finished_at'),
+   db.from('sync_logs').select('status,detail,finished_at').eq('source_id','twse').order('finished_at',{ascending:false}).limit(1),
+   db.from('stock_prices').select('trade_date').order('trade_date',{ascending:false}).limit(1)
+  ]);
+  if(twseLog.error)throw twseLog.error;
+  if(latestPrice.error)throw latestPrice.error;
   document.getElementById('newsCount').textContent=fmt(newsCount);
   document.getElementById('stockCount').textContent=fmt(stockCount);
-  document.getElementById('syncStatus').textContent=logs[0]?.status==='success'?'成功':logs[0]?.status==='error'?'失敗':'尚無紀錄';
-  notice.textContent=`最近同步：${date(logs[0]?.finished_at)}。重新讀取僅查詢資料庫，不會觸發新聞或股價擷取。`;
+  document.getElementById('syncStatus').textContent=logs[0]?.status==='success'?'成功':logs[0]?.status==='error'?'失敗':logs[0]?.status==='stale'?'來源未更新':'尚無紀錄';
+  const priceDay=latestPrice.data?.[0]?.trade_date??'無資料';
+  const t=twseLog.data?.[0];
+  const priceStatus=t?.status==='stale'?'（TWSE 尚未提供當日行情）':t?.status==='error'?'（行情同步失敗）':'';
+  notice.textContent=`最新行情交易日：${priceDay}${priceStatus}｜最近同步：${date(logs[0]?.finished_at)}。重新讀取僅查詢 Supabase，不會觸發擷取。`;
   await show(active);
  }catch(e){notice.textContent='讀取失敗：'+e.message;content.textContent='請檢查 Supabase 網址、RLS 和資料表設定。'}
 }

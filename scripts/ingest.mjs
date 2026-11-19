@@ -62,6 +62,13 @@ async function technews() {
   await upsert('news_articles',rows,'id');
   return rows.length;
 }
+function taipeiDate() {
+  return new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit'}).format(new Date());
+}
+function isTaiwanTradingDay(iso) {
+  const weekday = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return weekday !== 0 && weekday !== 6; // Holidays require exchange calendar; not inferred here.
+}
 async function twse() {
   const data = await (await request('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL')).json();
   if (!Array.isArray(data) || !data.length) throw new Error('TWSE returned no stock list');
@@ -79,14 +86,24 @@ async function twse() {
   if (!prices.length) throw new Error('TWSE response lacks valid Date rows; inspect endpoint fields before adapting');
   await upsert('companies',companies,'ticker');
   await upsert('stock_prices',prices,'ticker,trade_date');
-  return prices.length;
+  const latest = prices.map(p => p.trade_date).sort().at(-1);
+  const today = taipeiDate();
+  const stale = latest < today && isTaiwanTradingDay(today);
+  console.log(`twse: source latest trade_date=${latest}, Taipei date=${today}, stocks=${prices.length}, status=${stale?'source_not_yet_updated':'available'}`);
+  return {count:prices.length, latest, stale};
 }
 let failures = 0;
 for (const [id, fn] of [['technews',technews],['twse',twse]]) {
   try {
     const n = await fn();
-    await mark(id,'success',n);
-    console.log(`${id}: ${n} records`);
+    if (id === 'twse') {
+      await mark(id, n.stale ? 'stale' : 'success', n.count,
+        `Latest source trading date: ${n.latest}; Taipei calendar date: ${taipeiDate()}. Weekend/holiday handling requires exchange calendar.`);
+      console.log(`${id}: ${n.count} records; trade_date=${n.latest}; ${n.stale?'STALE source data':'source available'}`);
+    } else {
+      await mark(id,'success',n);
+      console.log(`${id}: ${n} records`);
+    }
   } catch(e) {
     failures++;
     console.error(`${id}: ${e.message}`);

@@ -66,8 +66,11 @@ async function stockView(){
 async function show(tab){active=tab;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));content.textContent='載入中…';
  try{
  if(tab==='news'){
-  const rows=await query('news_articles','title,url,published_at,source_id',60,'published_at');
-  content.innerHTML='<h2>全球新聞</h2><p class="subnote">目前來源：科技新報。鉅亨網尚未接入；點標題可開啟原始新聞。</p>'+(rows.length?rows.map(x=>`<div class="item"><a href="${esc(validUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><small>${esc(x.source_id)} · ${esc(date(x.published_at))}</small></div>`).join(''):'尚無新聞資料。');
+  const r=await db.from('market_briefs').select('brief_date,kind,category,title,summary,importance_score,source_urls,generated_at').order('brief_date',{ascending:false}).order('importance_score',{ascending:false}).limit(100);
+  if(r.error)throw r.error;
+  const all=r.data||[],day=all[0]?.brief_date,rows=all.filter(x=>x.brief_date===day);
+  const section=(kind,heading)=>{const items=rows.filter(x=>x.kind===kind);return `<h3>${heading}（${items.length}）</h3>`+(items.length?items.map(x=>{const links=(Array.isArray(x.source_urls)?x.source_urls:[]).map(z=>`<a href="${esc(validUrl(z.url))}" target="_blank" rel="noopener noreferrer">${esc(z.source||'原始來源')}</a>`).join(' · ');return `<div class="item"><strong>${esc(x.title)}</strong><small>${esc(x.category)} · 重要性 ${esc(x.importance_score)}/100</small><p>${esc(x.summary)}</p><small>來源：${links||'未提供'}</small></div>`}).join(''):'本次沒有符合條件的事件。')};
+  content.innerHTML='<h2>每日市場情報摘要</h2><p class="subnote">'+(day?'摘要日期：'+esc(day):'尚無摘要')+'｜規則式篩選與標題摘要，非 AI 全文分析；事件重要性不代表股價漲跌機率。新聞來源目前僅 TechNews。</p>'+(day?section('event','重大市場事件')+section('trend','產業與技術趨勢'):'請先在 Supabase 執行 sql/v20_briefs.sql，再到 GitHub Actions 執行 Market data sync 產生摘要。');
  }else if(tab==='stocks')await stockView();
  else if(tab==='mops'){
   const rows=await query('mops_disclosures','ticker,title,url,published_at',60,'published_at');

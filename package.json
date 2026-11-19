@@ -1,10 +1,11 @@
 {
   "name": "global-market-intelligence",
-  "version": "1.7.0",
+  "version": "1.9.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "sync": "node scripts/ingest.mjs"
+    "sync": "node scripts/ingest.mjs",
+    "backfill": "node scripts/backfill.mjs"
   },
   "dependencies": {
     "fast-xml-parser": "^4.5.3"

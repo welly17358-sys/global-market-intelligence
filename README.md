@@ -1,33 +1,20 @@
-Global Market Intelligence V1.7 — GitHub Pages + Supabase (JavaScript / Node.js)
-這是純 JavaScript 技術棧的基礎原型，沒有 Python、Streamlit 或本機後端。網站由 GitHub Pages 提供，資料庫由 Supabase 提供，擷取程式由 GitHub Actions 的 Node.js 執行。
-部署
-在 Supabase 新增專案，於 SQL Editor 執行 `sql/schema.sql`。
-複製 `config.example.js` 為 `config.js`，填入 Supabase Project URL 和公開的 anon/publishable key。這是公開網站設定，不可填 service_role key。
-建立 GitHub repository，例如 `global-market-intelligence`，將本 ZIP 解壓後的資料夾內所有檔案上傳至 repository 根目錄，包含 `.github` 隱藏資料夾。
-在 GitHub → Settings → Secrets and variables → Actions 設定 `SUPABASE\_URL` 和 `SUPABASE\_SERVICE\_ROLE\_KEY`（機密，僅供 Actions）。
-GitHub → Actions → `Manual market data sync` → Run workflow，查看同步日誌。
-GitHub → Settings → Pages → Deploy from a branch → `main` / `(root)`，使用產生的網址開啟。
+Global Market Intelligence V1.9
+以 V1.8 為基礎；GitHub Pages + Supabase + GitHub Actions + Node.js，無 Python。
+這版增加
+TWSE 最新實際交易日期檢查；API 未提供當日資料時，`sync\_logs` 記錄 `stale`，不把同步完成誤認為當日行情完成。
+週一至週五台灣時間 15:00、17:00、19:00 自動嘗試同步；GitHub 排程可能延遲、停用，且台灣休市日仍可能執行。
+新增 手動回補十檔觀察股票近兩個月歷史資料的 workflow：`Backfill watchlist history (manual only)`；使用 TWSE `STOCK\_DAY` 每月歷史資料。十檔為 2330、2308、2317、2383、3017、3037、2327、6669、2345、3711。不是全部 1,257 檔的歷史回補。
+首頁顯示資料庫最新行情交易日期。重新讀取仍只讀取 Supabase。
+更新步驟
+解壓縮 ZIP，把所有內容（含 `.github`、`scripts`）覆蓋上傳到原 GitHub Repository。不要刪除原有 `config.js`；ZIP 不包含它。
+不需要重新執行 `sql/schema.sql`，也不需要修改 Supabase Secrets 或 RLS。
+在 Actions 手動執行 `Market data sync` 一次確認。
+需要 5/20 日均量時，再手動執行 `Backfill watchlist history (manual only)`。每檔至多兩個月，若官方 API 拒絕請求會顯示錯誤，不應大量重試。
+等 GitHub Pages 發布後強制重新整理。
 重要限制
-開啟網站只會讀取 Supabase 資料，不會自動更新；目前透過 Actions 手動同步。
-TechNews RSS、TWSE OpenAPI 尚需實際網路驗證；TWSE 資料若沒有可確認的交易日期，會明確報錯而非使用錯誤日期。
-鉅亨網、MOPS、TPEx 擷取、AI 摘要、歷史回補與長期封存尚未實作。
-`npm install` 使用免費的 npm 套件；GitHub Actions 依 GitHub 免費額度執行。
-GitHub Pages 需有 `config.js`，可公開 anon key；絕對不要把 service_role key 或私人 Token 寫入網站。
-新聞內容只保存標題、來源連結與發布時間，不保存全文或圖片。擷取仍須遵守網站條款。
-Supabase 免費方案的資料庫容量有限，請定期備份；自動封存尚未完成。
-專案結構
-`index.html`、`site.js`、`config.example.js`：純前端網站
-`sql/schema.sql`：Supabase 資料表與 RLS
-`scripts/ingest.mjs`：Node.js 新聞與行情擷取
-`.github/workflows/manual-sync.yml`：GitHub Actions 手動更新
-`package.json`：Node.js 依賴
-下一階段
-確認來源與日期格式 → 增加 TPEx/MOPS/鉅亨網 → 歷史行情與事件分析 → 安全按需更新。
-V1.8 更新說明
-網頁可重新讀取 Supabase，不會觸發 GitHub Actions 擷取。
-新聞與行情筆數改用資料庫精確 COUNT。
-台股支援依代號搜尋，不再僅在前 100 筆內過濾。
-日漲跌幅、5/20 日均量、量比僅由資料庫已有歷史資料計算；不足時顯示「—」。
-鉅亨網及 MOPS 擷取尚未接入，不宣稱已有資料。
-更新前請保留原本 GitHub 上的 `config.js`；此 ZIP 中的 `config.js` 已刻意清除個人連線設定。切勿把 `sb\_secret\_` 放到公開網站。
-請保留 GitHub Repository Secrets 與 Supabase 既有資料表／權限，不需要重新執行 schema.sql。
+TWSE `STOCK\_DAY\_ALL` 何時更新由官方決定；重試不會使來源提前發布。
+`stale` 表示台灣日曆日已晚於官方回傳的最新交易日且為週一至週五；休市日仍可能誤報。網站應以實際 `trade\_date` 為準。
+目前只有十檔歷史回補，其他股票的 5/20 日均量需另外取得歷史資料；不能推算不存在的資料。
+台股成交量單位為股；回補資料來源欄位為 TWSE 每日成交股數。
+歷史回補與一般同步都使用 GitHub Actions Secrets；不可將 `sb\_secret\_` 放在公開網頁。
+GitHub Actions 免費額度與排程政策依帳號及 GitHub 當期規則，無法保證永遠零費用。

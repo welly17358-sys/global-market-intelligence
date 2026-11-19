@@ -3,7 +3,16 @@ const base=process.env.SUPABASE_URL?.replace(/\/$/,'');
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
 if(!base||!key)throw Error('Missing Supabase credentials');
 const headers={apikey:key,'Content-Type':'application/json'};
-async function api(path,opts={}){const r=await fetch(`${base}/rest/v1/${path}`,{headers,...opts,signal:AbortSignal.timeout(25000)});if(!r.ok)throw Error(`${r.status} ${await r.text()}`);return r.status===204?null:r.json()}
+async function api(path,opts={}) {
+  const r = await fetch(`${base}/rest/v1/${path}`, {
+    headers, ...opts, signal: AbortSignal.timeout(25000)
+  });
+  const body = await r.text();
+  if (!r.ok) throw new Error(`Supabase ${r.status} ${path}: ${body.slice(0,1000)}`);
+  if (!body.trim()) return null; // POST with Prefer: return=minimal may return 201 + empty body
+  try { return JSON.parse(body); }
+  catch (err) { throw new Error(`Invalid JSON from ${path} (HTTP ${r.status}): ${body.slice(0,300)}`, {cause:err}); }
+}
 const categories=[
  ['政策與總體經濟',/聯準會|fed|利率|通膨|cpi|關稅|出口管制|制裁|央行|非農|匯率|貿易戰|關稅|財政|美中/i],
  ['半導體與記憶體',/台積電|晶圓|半導體|晶片|封裝|hbm|dram|nand|記憶體|先進製程|gpu|輝達|nvidia/i],

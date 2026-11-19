@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 const base = process.env.SUPABASE_URL?.replace(/\/$/, '');
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!base || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+const headers = { apikey: key, 'Content-Type': 'application/json' };
 const parser = new XMLParser({ ignoreAttributes: false, processEntities: false });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function request(url, options = {}) {

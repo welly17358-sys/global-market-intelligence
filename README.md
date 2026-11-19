@@ -18,3 +18,18 @@ TWSE `STOCK\_DAY\_ALL` 何時更新由官方決定；重試不會使來源提前
 台股成交量單位為股；回補資料來源欄位為 TWSE 每日成交股數。
 歷史回補與一般同步都使用 GitHub Actions Secrets；不可將 `sb\_secret\_` 放在公開網頁。
 GitHub Actions 免費額度與排程政策依帳號及 GitHub 當期規則，無法保證永遠零費用。
+
+
+## V2.0 每日情報摘要
+1. 在 Supabase SQL Editor 執行 `sql/v20_briefs.sql`（只需一次）。
+2. **保留你 GitHub 原本的 `config.js`**；本 ZIP 不包含金鑰設定檔。
+3. 上傳 ZIP 中更新的檔案與資料夾，覆蓋 GitHub 同名檔案。
+4. GitHub Actions → **Market data sync** → Run workflow，成功後將自動執行 `npm run brief`。
+5. 重新整理 GitHub Pages，首頁「每日情報摘要」將讀取 `market_briefs`。
+
+### 注意
+- V2.0 是 **標題規則式精選與模板摘要**，不會閱讀全文，也不會預測股價。
+- 目前來源只有 TechNews；鉅亨網及 MOPS 自動擷取尚未實作。
+- 相似新聞以字元二元組粗略去重，可能漏合併或誤合併。
+- 每次執行讀取最近 72 小時至多 500 篇，僅保留每日最多 10 則重大事件與 5 則趨勢；不會自動刪除原始新聞。
+- 若未執行 SQL，新的 Briefing step 會失敗；既有行情同步不受影響。
